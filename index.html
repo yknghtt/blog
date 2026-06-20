@@ -137,13 +137,45 @@
       ${entry.rating ? `<div class="modal-stars">${renderStars(entry.rating)}</div>` : ""}
       <p class="modal-review">${escapeHtml(entry.review)}</p>
       ${quotesHtml}
+      <div class="modal-actions">
+        <button class="btn subtle" id="modalDeleteBtn" data-id="${escapeHtml(entry.id)}">удалить запись</button>
+      </div>
     `;
     document.getElementById("modalBackdrop").classList.add("open");
     document.getElementById("modalCloseBtn").addEventListener("click", closeModal);
+    document.getElementById("modalDeleteBtn").addEventListener("click", handleDeleteClick);
+  }
+
+  let deleteConfirmId = null;
+
+  async function handleDeleteClick(e) {
+    const btn = e.target;
+    const id = btn.dataset.id;
+
+    if (deleteConfirmId !== id) {
+      deleteConfirmId = id;
+      btn.textContent = "точно удалить? нажми ещё раз";
+      btn.style.color = "#a14b3f";
+      btn.style.borderColor = "#a14b3f";
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "удаляю...";
+    try {
+      allEntries = await Store.deleteEntry(id);
+      closeModal();
+      render();
+    } catch (err) {
+      btn.textContent = "не получилось: " + (err.message || "ошибка");
+      btn.disabled = false;
+    }
+    deleteConfirmId = null;
   }
 
   function closeModal() {
     document.getElementById("modalBackdrop").classList.remove("open");
+    deleteConfirmId = null;
   }
 
   document.getElementById("modalBackdrop").addEventListener("click", (e) => {
