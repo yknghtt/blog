@@ -24,12 +24,16 @@ const Store = (() => {
     return !!(c.owner && c.repo && c.token);
   }
 
+  function clean(v) {
+    return (v || "").trim().replace(/^\/+|\/+$/g, "");
+  }
+
   function rawUrl(owner, repo, branch) {
-    return `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/data/entries.json?t=${Date.now()}`;
+    return `https://raw.githubusercontent.com/${clean(owner)}/${clean(repo)}/${clean(branch)}/data/entries.json?t=${Date.now()}`;
   }
 
   function apiUrl(owner, repo) {
-    return `https://api.github.com/repos/${owner}/${repo}/contents/data/entries.json`;
+    return `https://api.github.com/repos/${clean(owner)}/${clean(repo)}/contents/data/entries.json`;
   }
 
   async function fetchEntries() {
@@ -48,11 +52,16 @@ const Store = (() => {
 
   async function getFileSha() {
     const cfg = getConfig();
-    const res = await fetch(apiUrl(cfg.owner, cfg.repo) + `?ref=${cfg.branch || "main"}`, {
+    const res = await fetch(apiUrl(cfg.owner, cfg.repo) + `?ref=${clean(cfg.branch) || "main"}`, {
       headers: { Authorization: `Bearer ${cfg.token}` },
     });
     if (res.status === 404) return null;
-    if (!res.ok) throw new Error("Не удалось получить файл данных (" + res.status + ")");
+    if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        throw new Error("GitHub отклонил токен (код " + res.status + "). Проверь, что токен скопирован полностью и не истёк.");
+      }
+      throw new Error("Не удалось получить файл данных (код " + res.status + "). Проверь имя пользователя «" + clean(cfg.owner) + "» и репозиторий «" + clean(cfg.repo) + "» в настройках.");
+    }
     const json = await res.json();
     return json.sha;
   }
@@ -85,6 +94,12 @@ const Store = (() => {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
+      if (res.status === 404) {
+        throw new Error("GitHub не нашёл репозиторий «" + clean(cfg.owner) + "/" + clean(cfg.repo) + "». Проверь имя пользователя и название репозитория в настройках — без опечаток и без слова github.com.");
+      }
+      if (res.status === 401 || res.status === 403) {
+        throw new Error("GitHub отклонил токен. Проверь, что он скопирован полностью и имеет права на запись (repo).");
+      }
       throw new Error("Ошибка сохранения: " + (err.message || res.status));
     }
     return true;

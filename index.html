@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Полка — фильмы и книги</title>
+<title>moments in between</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -15,15 +15,15 @@
   <header class="site">
     <div class="header-actions">
       <div>
-        <h1>Полка</h1>
-        <p class="tagline">Фильмы и книги, которые останутся со мной</p>
+        <h1>moments in between</h1>
+        <p class="tagline">фильмы и книги, заметки на полях жизни</p>
       </div>
-      <a href="add.html" class="btn primary">+ Новая запись</a>
+      <a href="add.html" class="btn primary">+ новая запись</a>
     </div>
     <nav class="tabs" id="tabs">
-      <button class="active" data-filter="all">Все</button>
-      <button data-filter="movie">Фильмы</button>
-      <button data-filter="book">Книги</button>
+      <button class="active" data-filter="all">все</button>
+      <button data-filter="movie">фильмы</button>
+      <button data-filter="book">книги</button>
     </nav>
   </header>
 
@@ -34,6 +34,12 @@
   <footer class="site">
     <a href="settings.html">настройки</a>
   </footer>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal-card" id="modalCard">
+    <!-- содержимое модального окна -->
+  </div>
 </div>
 
 <script src="store.js"></script>
@@ -59,10 +65,13 @@
   }
 
   function renderStars(rating) {
-    if (!rating) return "";
     const n = parseInt(rating, 10);
     if (!n) return "";
     return "★".repeat(n) + "☆".repeat(5 - n);
+  }
+
+  function typeLabel(type) {
+    return type === "movie" ? "фильм" : "книга";
   }
 
   function render() {
@@ -74,8 +83,8 @@
     if (!Store.isConfigured()) {
       feed.innerHTML = `
         <div class="empty-state">
-          <h2>Сначала подключи хранилище</h2>
-          <p>Зайди в <a href="settings.html">настройки</a> и укажи свой GitHub-репозиторий — это займёт пару минут, дальше всё будет работать само.</p>
+          <h2>сначала подключи хранилище</h2>
+          <p>зайди в <a href="settings.html">настройки</a> и укажи свой GitHub-репозиторий — это займёт пару минут, дальше всё будет работать само.</p>
         </div>`;
       return;
     }
@@ -83,30 +92,75 @@
     if (filtered.length === 0) {
       feed.innerHTML = `
         <div class="empty-state">
-          <h2>Здесь пока пусто</h2>
-          <p>Добавь первую запись — нажми «+ Новая запись» наверху.</p>
+          <h2>здесь пока пусто</h2>
+          <p>добавь первую запись — нажми «+ новая запись» наверху.</p>
         </div>`;
       return;
     }
 
     feed.innerHTML = filtered.map((e) => `
-      <article class="entry">
+      <article class="entry" data-id="${escapeHtml(e.id)}">
         <div class="entry-cover">
           ${e.cover ? `<img src="${escapeHtml(e.cover)}" alt="" loading="lazy" />` : initials(e.title)}
         </div>
         <div class="entry-body">
           <div class="meta-row">
-            <span class="tag">${e.type === "movie" ? "Фильм" : "Книга"}</span>
-            <span class="dot-sep">·</span>
+            <span class="tag ${e.type}">${typeLabel(e.type)}</span>
+            <span class="dot-sep">/</span>
             <span class="entry-date">${formatDate(e.date)}</span>
-            ${e.rating ? `<span class="dot-sep">·</span><span class="entry-rating">${renderStars(e.rating)}</span>` : ""}
           </div>
           <h2 class="entry-title">${escapeHtml(e.title)}</h2>
+          ${e.rating ? `<div class="entry-stars">${renderStars(e.rating)}</div>` : ""}
           <p class="entry-review">${escapeHtml(e.review)}</p>
         </div>
       </article>
     `).join("");
   }
+
+  function openModal(entry) {
+    const modalCard = document.getElementById("modalCard");
+    const quotesHtml = (entry.quotes || "").trim()
+      ? `<div class="modal-quote">${entry.quotes.split("\n").filter(Boolean).map(q => `<p>«${escapeHtml(q)}»</p>`).join("")}</div>`
+      : "";
+
+    modalCard.innerHTML = `
+      <button class="modal-close" id="modalCloseBtn" aria-label="Закрыть">✕</button>
+      <div class="modal-cover">
+        ${entry.cover ? `<img src="${escapeHtml(entry.cover)}" alt="" />` : initials(entry.title)}
+      </div>
+      <div class="modal-meta">
+        <span class="tag ${entry.type}">${typeLabel(entry.type)}</span>
+        <span class="dot-sep">/</span>
+        <span class="entry-date">${formatDate(entry.date)}</span>
+      </div>
+      <h2 class="modal-title">${escapeHtml(entry.title)}</h2>
+      ${entry.rating ? `<div class="modal-stars">${renderStars(entry.rating)}</div>` : ""}
+      <p class="modal-review">${escapeHtml(entry.review)}</p>
+      ${quotesHtml}
+    `;
+    document.getElementById("modalBackdrop").classList.add("open");
+    document.getElementById("modalCloseBtn").addEventListener("click", closeModal);
+  }
+
+  function closeModal() {
+    document.getElementById("modalBackdrop").classList.remove("open");
+  }
+
+  document.getElementById("modalBackdrop").addEventListener("click", (e) => {
+    if (e.target.id === "modalBackdrop") closeModal();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeModal();
+  });
+
+  document.getElementById("feed").addEventListener("click", (e) => {
+    const card = e.target.closest(".entry");
+    if (!card) return;
+    const id = card.dataset.id;
+    const entry = allEntries.find((x) => String(x.id) === String(id));
+    if (entry) openModal(entry);
+  });
 
   document.getElementById("tabs").addEventListener("click", (ev) => {
     const btn = ev.target.closest("button");

@@ -3,41 +3,41 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Новая запись — Полка</title>
+<title>новая запись — moments in between</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
 <div class="form-page">
-  <a href="index.html" class="btn" style="margin-bottom:32px; display:inline-block;">← На полку</a>
-  <h1>Новая запись</h1>
-  <p class="form-sub">Расскажи о том, что посмотрела или прочитала.</p>
+  <a href="index.html" class="btn" style="margin-bottom:32px; display:inline-block;">← назад</a>
+  <h1>новая запись</h1>
+  <p class="form-sub">расскажи о том, что посмотрела или прочитала</p>
 
   <form id="entryForm">
     <div class="field">
-      <label>Это фильм или книга?</label>
+      <label>это фильм или книга?</label>
       <div class="type-toggle" id="typeToggle">
-        <button type="button" data-type="movie" class="active">Фильм</button>
-        <button type="button" data-type="book">Книга</button>
+        <button type="button" data-type="movie" class="active">фильм</button>
+        <button type="button" data-type="book">книга</button>
       </div>
       <input type="hidden" id="type" value="movie" />
     </div>
 
     <div class="field">
-      <label for="title">Название</label>
-      <input type="text" id="title" placeholder="Например, «Зеркало»" required />
+      <label for="title">название</label>
+      <input type="text" id="title" placeholder="например, «Зеркало»" required />
     </div>
 
     <div class="field">
-      <label for="date">Дата просмотра / прочтения</label>
+      <label for="date">дата просмотра / прочтения</label>
       <input type="date" id="date" />
     </div>
 
     <div class="field">
-      <label>Оценка</label>
+      <label>оценка</label>
       <div class="rating-row" id="ratingRow">
         <button type="button" data-rating="1">1</button>
         <button type="button" data-rating="2">2</button>
@@ -49,17 +49,41 @@
     </div>
 
     <div class="field">
-      <label for="cover">Ссылка на обложку (необязательно)</label>
-      <input type="url" id="cover" placeholder="https://..." />
+      <label>обложка (необязательно)</label>
+      <div class="cover-toggle" id="coverToggle">
+        <button type="button" data-mode="url" class="active">по ссылке</button>
+        <button type="button" data-mode="upload">загрузить</button>
+      </div>
+
+      <div id="coverUrlBlock">
+        <input type="url" id="cover" placeholder="https://..." />
+        <p class="hint">лучше всего работают вертикальные изображения (постер, обложка книги) — горизонтальные не обрежутся, но будут смотреться скромнее</p>
+      </div>
+
+      <div id="coverUploadBlock" style="display:none;">
+        <div class="cover-upload-area" id="uploadArea">нажми, чтобы выбрать изображение</div>
+        <input type="file" id="coverFile" accept="image/*" style="display:none;" />
+        <p class="hint">изображение сохранится прямо в файле данных — удобно для небольших картинок. Для крупных обложек лучше подходит вариант «по ссылке»</p>
+      </div>
+
+      <div class="cover-preview" id="coverPreview" style="display:none;">
+        <img id="coverPreviewImg" alt="" />
+      </div>
     </div>
 
     <div class="field">
-      <label for="review">Твои мысли</label>
-      <textarea id="review" placeholder="О чём это, что зацепило, что не понравилось..."></textarea>
+      <label for="review">твои мысли</label>
+      <textarea id="review" placeholder="о чём это, что зацепило, что не понравилось..."></textarea>
+    </div>
+
+    <div class="field">
+      <label for="quotes">цитаты (необязательно)</label>
+      <textarea id="quotes" class="quotes" placeholder="каждая цитата — с новой строки"></textarea>
+      <p class="hint">каждая строка превратится в отдельную цитату на странице записи</p>
     </div>
 
     <div class="form-actions">
-      <button type="submit" class="btn primary">Сохранить запись</button>
+      <button type="submit" class="btn primary">сохранить запись</button>
       <span class="form-status" id="status"></span>
     </div>
   </form>
@@ -67,7 +91,6 @@
 
 <script src="store.js"></script>
 <script>
-  // тип
   document.getElementById("typeToggle").addEventListener("click", (e) => {
     const btn = e.target.closest("button");
     if (!btn) return;
@@ -76,7 +99,6 @@
     document.getElementById("type").value = btn.dataset.type;
   });
 
-  // оценка
   document.getElementById("ratingRow").addEventListener("click", (e) => {
     const btn = e.target.closest("button");
     if (!btn) return;
@@ -91,8 +113,56 @@
     }
   });
 
-  // дата по умолчанию — сегодня
   document.getElementById("date").value = new Date().toISOString().slice(0, 10);
+
+  // переключение режима обложки
+  let coverMode = "url";
+  let uploadedCoverDataUrl = "";
+
+  document.getElementById("coverToggle").addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    document.querySelectorAll("#coverToggle button").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    coverMode = btn.dataset.mode;
+    document.getElementById("coverUrlBlock").style.display = coverMode === "url" ? "block" : "none";
+    document.getElementById("coverUploadBlock").style.display = coverMode === "upload" ? "block" : "none";
+    updatePreview();
+  });
+
+  document.getElementById("uploadArea").addEventListener("click", () => {
+    document.getElementById("coverFile").click();
+  });
+
+  document.getElementById("coverFile").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      uploadedCoverDataUrl = reader.result;
+      updatePreview();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  document.getElementById("cover").addEventListener("input", updatePreview);
+
+  function updatePreview() {
+    const previewBox = document.getElementById("coverPreview");
+    const img = document.getElementById("coverPreviewImg");
+    let src = "";
+    if (coverMode === "url") {
+      src = document.getElementById("cover").value.trim();
+    } else {
+      src = uploadedCoverDataUrl;
+    }
+    if (src) {
+      img.src = src;
+      previewBox.style.display = "block";
+    } else {
+      previewBox.style.display = "none";
+    }
+  }
 
   const statusEl = document.getElementById("status");
 
@@ -100,7 +170,7 @@
     e.preventDefault();
 
     if (!Store.isConfigured()) {
-      statusEl.textContent = "Сначала настрой подключение к GitHub в настройках.";
+      statusEl.textContent = "сначала настрой подключение к GitHub в настройках";
       statusEl.className = "form-status error";
       return;
     }
@@ -108,30 +178,35 @@
     const title = document.getElementById("title").value.trim();
     if (!title) return;
 
+    const cover = coverMode === "url"
+      ? document.getElementById("cover").value.trim()
+      : uploadedCoverDataUrl;
+
     const entry = {
       id: Store.makeId(),
       type: document.getElementById("type").value,
       title,
       date: document.getElementById("date").value,
       rating: document.getElementById("rating").value,
-      cover: document.getElementById("cover").value.trim(),
+      cover,
       review: document.getElementById("review").value.trim(),
+      quotes: document.getElementById("quotes").value.trim(),
     };
 
     const submitBtn = e.target.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
-    statusEl.textContent = "Сохраняю...";
+    statusEl.textContent = "сохраняю...";
     statusEl.className = "form-status";
 
     try {
       await Store.addEntry(entry);
-      statusEl.textContent = "Сохранено!";
+      statusEl.textContent = "сохранено!";
       statusEl.className = "form-status ok";
       setTimeout(() => {
         window.location.href = "index.html";
       }, 600);
     } catch (err) {
-      statusEl.textContent = err.message || "Не получилось сохранить.";
+      statusEl.textContent = err.message || "не получилось сохранить";
       statusEl.className = "form-status error";
       submitBtn.disabled = false;
     }

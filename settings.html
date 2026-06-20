@@ -3,18 +3,18 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Настройки — Полка</title>
+<title>настройки — moments in between</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
 <div class="form-page">
-  <a href="index.html" class="btn" style="margin-bottom:32px; display:inline-block;">← На полку</a>
-  <h1>Настройки</h1>
-  <p class="form-sub">Подключи свой GitHub-репозиторий, чтобы записи сохранялись.</p>
+  <a href="index.html" class="btn" style="margin-bottom:32px; display:inline-block;">← назад</a>
+  <h1>настройки</h1>
+  <p class="form-sub">подключи свой GitHub-репозиторий, чтобы записи сохранялись</p>
 
   <div class="settings-note">
     Нужен личный токен доступа (Personal Access Token). Он хранится только в этом браузере и нужен,
@@ -22,34 +22,36 @@
     <br><br>
     Как получить токен: открой
     <a href="https://github.com/settings/tokens/new" target="_blank" rel="noopener">github.com/settings/tokens/new</a>,
-    укажи любое название, срок действия — на твой вкус, и в разделе «Repository access» выбери
-    свой репозиторий блога. В правах (Permissions) найди «Contents» и поставь «Read and write».
-    Затем нажми «Generate token» и скопируй его сюда.
+    укажи любое название, выбери срок действия, и поставь галочку на <code>repo</code> (полный доступ к репозиториям).
+    Спустись вниз и нажми «Generate token», скопируй получившуюся строку.
+    <br><br>
+    Имя пользователя и название репозитория бери из адреса своего репозитория:
+    <code>github.com/ИМЯ_ПОЛЬЗОВАТЕЛЯ/НАЗВАНИЕ_РЕПОЗИТОРИЯ</code>.
   </div>
 
   <form id="settingsForm">
     <div class="field">
-      <label for="owner">Имя пользователя GitHub</label>
+      <label for="owner">имя пользователя GitHub</label>
       <input type="text" id="owner" placeholder="например, yknghtt" required />
     </div>
 
     <div class="field">
-      <label for="repo">Название репозитория</label>
+      <label for="repo">название репозитория</label>
       <input type="text" id="repo" placeholder="например, blog" required />
     </div>
 
     <div class="field">
-      <label for="branch">Ветка (обычно main)</label>
+      <label for="branch">ветка (обычно main)</label>
       <input type="text" id="branch" placeholder="main" value="main" />
     </div>
 
     <div class="field">
-      <label for="token">Личный токен доступа</label>
+      <label for="token">личный токен доступа</label>
       <input type="text" id="token" placeholder="ghp_..." required />
     </div>
 
     <div class="form-actions">
-      <button type="submit" class="btn primary">Сохранить настройки</button>
+      <button type="submit" class="btn primary">сохранить настройки</button>
       <span class="form-status" id="status"></span>
     </div>
   </form>
@@ -63,17 +65,40 @@
   if (cfg.branch) document.getElementById("branch").value = cfg.branch;
   if (cfg.token) document.getElementById("token").value = cfg.token;
 
+  // если случайно вставили ссылку вида https://github.com/owner/repo —
+  // вытаскиваем из неё чистые значения
+  function extractFromGithubUrl(value) {
+    const match = value.match(/github\.com\/([^\/\s]+)\/?([^\/\s]*)/i);
+    if (match) {
+      return { owner: match[1] || "", repo: match[2] || "" };
+    }
+    return null;
+  }
+
+  document.getElementById("owner").addEventListener("blur", (e) => {
+    const val = e.target.value.trim();
+    const parsed = extractFromGithubUrl(val);
+    if (parsed) {
+      document.getElementById("owner").value = parsed.owner;
+      if (parsed.repo && !document.getElementById("repo").value.trim()) {
+        document.getElementById("repo").value = parsed.repo;
+      }
+    } else {
+      e.target.value = val.replace(/^\/+|\/+$/g, "");
+    }
+  });
+
   document.getElementById("settingsForm").addEventListener("submit", (e) => {
     e.preventDefault();
     const newCfg = {
-      owner: document.getElementById("owner").value.trim(),
-      repo: document.getElementById("repo").value.trim(),
+      owner: document.getElementById("owner").value.trim().replace(/^\/+|\/+$/g, ""),
+      repo: document.getElementById("repo").value.trim().replace(/^\/+|\/+$/g, ""),
       branch: document.getElementById("branch").value.trim() || "main",
       token: document.getElementById("token").value.trim(),
     };
     Store.setConfig(newCfg);
     const statusEl = document.getElementById("status");
-    statusEl.textContent = "Сохранено! Можно возвращаться на полку.";
+    statusEl.textContent = "сохранено! можно возвращаться на полку";
     statusEl.className = "form-status ok";
   });
 </script>
