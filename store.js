@@ -41,7 +41,10 @@ const Store = (() => {
     if (!cfg.owner || !cfg.repo) return [];
     const branch = cfg.branch || "main";
     try {
-      const res = await fetch(rawUrl(cfg.owner, cfg.repo, branch), { cache: "no-store" });
+      const res = await fetch(rawUrl(cfg.owner, cfg.repo, branch), {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-cache, no-store, must-revalidate", Pragma: "no-cache" },
+      });
       if (!res.ok) return [];
       const data = await res.json();
       return Array.isArray(data) ? data : [];
@@ -50,12 +53,18 @@ const Store = (() => {
     }
   }
 
-  async function getFileSha() {
+  // Используется только перед записью (добавление/удаление): читает текущее
+  // содержимое файла напрямую через GitHub API, минуя кэш raw.githubusercontent.com,
+  // чтобы случайно не перезаписать файл устаревшей версией.
+  async function fetchEntriesForWrite() {
     const cfg = getConfig();
     const res = await fetch(apiUrl(cfg.owner, cfg.repo) + `?ref=${clean(cfg.branch) || "main"}`, {
       headers: { Authorization: `Bearer ${cfg.token}` },
+      cache: "no-store",
     });
-    if (res.status === 404) return null;
+    if (res.status === 404) {
+      return { entries: [], sha: null };
+    }
     if (!res.ok) {
       if (res.status === 401 || res.status === 403) {
         throw new Error("GitHub отклонил токен (код " + res.status + "). Проверь, что токен скопирован полностью и не истёк.");
@@ -63,19 +72,27 @@ const Store = (() => {
       throw new Error("Не удалось получить файл данных (код " + res.status + "). Проверь имя пользователя «" + clean(cfg.owner) + "» и репозиторий «" + clean(cfg.repo) + "» в настройках.");
     }
     const json = await res.json();
-    return json.sha;
+    let entries = [];
+    try {
+      const decoded = decodeURIComponent(escape(atob(json.content.replace(/\n/g, ""))));
+      entries = JSON.parse(decoded);
+      if (!Array.isArray(entries)) entries = [];
+    } catch (e) {
+      entries = [];
+    }
+    return { entries, sha: json.sha };
   }
 
   function b64EncodeUnicode(str) {
     return btoa(unescape(encodeURIComponent(str)));
   }
 
-  async function saveEntries(entries) {
+  async function saveEntries(entries, knownSha) {
     const cfg = getConfig();
     if (!cfg.owner || !cfg.repo || !cfg.token) {
       throw new Error("Не настроено подключение к GitHub. Зайди в Настройки.");
     }
-    const sha = await getFileSha();
+    const sha = knownSha !== undefined ? knownSha : (await fetchEntriesForWrite()).sha;
     const content = b64EncodeUnicode(JSON.stringify(entries, null, 2));
     const body = {
       message: sha ? "Обновление записей блога" : "Создание файла записей блога",
@@ -100,22 +117,25 @@ const Store = (() => {
       if (res.status === 401 || res.status === 403) {
         throw new Error("GitHub отклонил токен. Проверь, что он скопирован полностью и имеет права на запись (repo).");
       }
+      if (res.status === 409) {
+        throw new Error("Файл изменился, пока ты редактировала. Обнови страницу и попробуй снова.");
+      }
       throw new Error("Ошибка сохранения: " + (err.message || res.status));
     }
     return true;
   }
 
   async function addEntry(entry) {
-    const entries = await fetchEntries();
+    const { entries, sha } = await fetchEntriesForWrite();
     entries.unshift(entry);
-    await saveEntries(entries);
+    await saveEntries(entries, sha);
     return entries;
   }
 
   async function deleteEntry(id) {
-    const entries = await fetchEntries();
+    const { entries, sha } = await fetchEntriesForWrite();
     const filtered = entries.filter((e) => e.id !== id);
-    await saveEntries(filtered);
+    await saveEntries(filtered, sha);
     return filtered;
   }
 

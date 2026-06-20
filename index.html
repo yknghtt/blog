@@ -33,6 +33,8 @@
 
   <footer class="site">
     <a href="settings.html">настройки</a>
+    <span class="dot-sep" style="margin:0 8px;">/</span>
+    <a href="#" id="refreshLink">обновить ленту</a>
   </footer>
 </div>
 
@@ -201,6 +203,13 @@
     btn.classList.add("active");
     currentFilter = btn.dataset.filter;
     render();
+  });
+
+  document.getElementById("refreshLink").addEventListener("click", async (e) => {
+    e.preventDefault();
+    const feed = document.getElementById("feed");
+    feed.innerHTML = `<div class="empty-state"><p>обновляю...</p></div>`;
+    await init();
   });
 
   async function init() {
