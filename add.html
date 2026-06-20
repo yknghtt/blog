@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Новая запись — Полка</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div class="form-page">
+  <a href="index.html" class="btn" style="margin-bottom:32px; display:inline-block;">← На полку</a>
+  <h1>Новая запись</h1>
+  <p class="form-sub">Расскажи о том, что посмотрела или прочитала.</p>
+
+  <form id="entryForm">
+    <div class="field">
+      <label>Это фильм или книга?</label>
+      <div class="type-toggle" id="typeToggle">
+        <button type="button" data-type="movie" class="active">Фильм</button>
+        <button type="button" data-type="book">Книга</button>
+      </div>
+      <input type="hidden" id="type" value="movie" />
+    </div>
+
+    <div class="field">
+      <label for="title">Название</label>
+      <input type="text" id="title" placeholder="Например, «Зеркало»" required />
+    </div>
+
+    <div class="field">
+      <label for="date">Дата просмотра / прочтения</label>
+      <input type="date" id="date" />
+    </div>
+
+    <div class="field">
+      <label>Оценка</label>
+      <div class="rating-row" id="ratingRow">
+        <button type="button" data-rating="1">1</button>
+        <button type="button" data-rating="2">2</button>
+        <button type="button" data-rating="3">3</button>
+        <button type="button" data-rating="4">4</button>
+        <button type="button" data-rating="5">5</button>
+      </div>
+      <input type="hidden" id="rating" value="" />
+    </div>
+
+    <div class="field">
+      <label for="cover">Ссылка на обложку (необязательно)</label>
+      <input type="url" id="cover" placeholder="https://..." />
+    </div>
+
+    <div class="field">
+      <label for="review">Твои мысли</label>
+      <textarea id="review" placeholder="О чём это, что зацепило, что не понравилось..."></textarea>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn primary">Сохранить запись</button>
+      <span class="form-status" id="status"></span>
+    </div>
+  </form>
+</div>
+
+<script src="store.js"></script>
+<script>
+  // тип
+  document.getElementById("typeToggle").addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    document.querySelectorAll("#typeToggle button").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("type").value = btn.dataset.type;
+  });
+
+  // оценка
+  document.getElementById("ratingRow").addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    const val = btn.dataset.rating;
+    const already = btn.classList.contains("active");
+    document.querySelectorAll("#ratingRow button").forEach((b) => b.classList.remove("active"));
+    if (already) {
+      document.getElementById("rating").value = "";
+    } else {
+      btn.classList.add("active");
+      document.getElementById("rating").value = val;
+    }
+  });
+
+  // дата по умолчанию — сегодня
+  document.getElementById("date").value = new Date().toISOString().slice(0, 10);
+
+  const statusEl = document.getElementById("status");
+
+  document.getElementById("entryForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    if (!Store.isConfigured()) {
+      statusEl.textContent = "Сначала настрой подключение к GitHub в настройках.";
+      statusEl.className = "form-status error";
+      return;
+    }
+
+    const title = document.getElementById("title").value.trim();
+    if (!title) return;
+
+    const entry = {
+      id: Store.makeId(),
+      type: document.getElementById("type").value,
+      title,
+      date: document.getElementById("date").value,
+      rating: document.getElementById("rating").value,
+      cover: document.getElementById("cover").value.trim(),
+      review: document.getElementById("review").value.trim(),
+    };
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    statusEl.textContent = "Сохраняю...";
+    statusEl.className = "form-status";
+
+    try {
+      await Store.addEntry(entry);
+      statusEl.textContent = "Сохранено!";
+      statusEl.className = "form-status ok";
+      setTimeout(() => {
+        window.location.href = "index.html";
+      }, 600);
+    } catch (err) {
+      statusEl.textContent = err.message || "Не получилось сохранить.";
+      statusEl.className = "form-status error";
+      submitBtn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
